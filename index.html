@@ -18,6 +18,13 @@ button,input,select{font:inherit}button{cursor:pointer}.app{display:flex;min-hei
 @media(max-width:750px){.app{display:block}.side{height:auto;width:100%;position:static;padding:10px}.logo{margin:4px 8px 8px}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap;width:auto}.main{padding:12px}.products{grid-template-columns:repeat(2,1fr)}.cart{grid-template-columns:1fr}.cartbox{position:static}.catalog{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.cards{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.top h1{font-size:20px}.actions .soft{display:none}}
 </style>
+
+<style>
+.cartitem{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.qtycontrols{display:flex;align-items:center;gap:5px;margin-top:5px}
+.qtycontrols button{min-width:32px;height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:18px}
+.qtycontrols .remove{font-size:16px}
+</style>
 </head>
 <body>
 <div class="app">
@@ -46,7 +53,23 @@ button,input,select{font:inherit}button{cursor:pointer}.app{display:flex;min-hei
 
 <section id="sale" class="view">
 <div class="cart"><div class="panel"><div class="ph"><h2>Punto de venta</h2><span class="mut">Toca un producto para vender</span></div><div class="body"><input id="sq" class="search" style="width:100%" placeholder="🔎 Buscar producto..." oninput="renderSale()"><div class="catalog" id="catalog" style="margin-top:12px"></div></div></div>
-<div class="cartbox"><h2 style="margin-top:0">Ticket actual</h2><div id="cart"></div><div class="total" id="total">$0.00</div><div class="pay" id="pay"><button class="on" onclick="setPay('Efectivo',this)">💵 Efectivo</button><button onclick="setPay('Tarjeta',this)">💳 Tarjeta</button><button onclick="setPay('Transferencia',this)">📲 Transferencia</button></div><input id="cash" class="search" style="width:100%;margin-top:9px" type="number" placeholder="Efectivo recibido" oninput="changeCalc()"><div id="change" class="mut" style="margin:8px 0"></div><button class="btn primary" style="width:100%;margin-top:8px" onclick="finishSale()">Cobrar e imprimir ticket</button></div></div>
+<div class="cartbox">
+<h2 style="margin-top:0">Ticket actual</h2>
+<div id="cart"></div>
+<div class="total" id="total">$0.00</div>
+<div class="pay">
+<button class="on" onclick="setPay('Efectivo',this)">💵 Efectivo</button>
+<button onclick="setPay('Tarjeta',this)">💳 Tarjeta</button>
+<button onclick="setPay('Transferencia',this)">📲 Transferencia</button>
+</div>
+<input id="cash" class="search" style="width:100%;margin-top:9px" type="number" placeholder="Efectivo recibido" oninput="changeCalc()">
+<div id="change" class="mut" style="margin:8px 0"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+<button class="btn soft" onclick="clearCart()">🗑️ Vaciar venta</button>
+<button class="btn" onclick="cancelSale()">✖ Cancelar venta</button>
+</div>
+<button class="btn primary" style="width:100%;margin-top:8px" onclick="finishSale()">💰 Cobrar e imprimir ticket</button>
+</div></div>
 </section>
 
 <section id="cash" class="view"><div class="cards"><div class="metric"><span class="i">🔓</span><small>Estado</small><b id="cashState">Caja cerrada</b></div><div class="metric"><span class="i">💵</span><small>Efectivo</small><b id="cashTotal">$0</b></div></div><div class="panel"><div class="ph"><h2>Control de caja</h2></div><div class="body"><button class="btn primary" onclick="openCash()">Abrir caja</button> <button class="btn soft" onclick="closeCash()">Hacer corte</button></div></div></section>
@@ -73,9 +96,80 @@ function renderInv(){let q=(document.getElementById("q")?.value||"").toLowerCase
 function setCat(x){cat=x;renderInv()} function adj(id,n){let p=P.find(x=>x.id===id);p.stock=Math.max(0,p.stock+n);save();renderAll()} function removeP(id){if(confirm("¿Eliminar producto?")){P=P.filter(p=>p.id!==id);save();renderAll()}}
 function openProduct(id){let p=P.find(x=>x.id===id);modal.classList.add("on");mt.textContent=p?"Editar producto":"Nuevo producto";pc.innerHTML=C.map(x=>`<option>${x}</option>`).join("");pi.innerHTML=I.map(x=>`<option>${x}</option>`).join("");pid.value=p?.id||"";pn.value=p?.name||"";pc.value=p?.cat||"Abarrotes";pi.value=p?.icon||"📦";pp.value=p?.price??"";pk.value=p?.cost??0;ps.value=p?.stock??0;pm.value=p?.min??3;pb.value=p?.sku||""}
 function closeM(){modal.classList.remove("on")} function saveProduct(e){e.preventDefault();let id=pid.value,p={id:id||"p"+Date.now(),name:pn.value.trim(),cat:pc.value,icon:pi.value,price:+pp.value,cost:+pk.value,stock:+ps.value,min:+pm.value,sku:pb.value.trim()};P=id?P.map(x=>x.id===id?p:x):[...P,p];save();closeM();renderAll()}
-function renderSale(){let q=(sq.value||"").toLowerCase();catalog.innerHTML=P.filter(p=>p.stock>0&&p.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(p=>`<button class="catprod" onclick="addCart('${p.id}')">${p.icon} <strong>${p.name}</strong><span>${money(p.price)} · ${p.stock} disponibles</span></button>`).join("");cart.innerHTML=cart.length?cart.map((x,i)=>`<div class="row"><span>${x.name}<br><small>${x.qty} × ${money(x.price)}</small></span><button class="mini" onclick="cart.splice(${i},1);renderSale()">×</button></div>`).join(""):"<p class='mut'>Agrega productos al ticket.</p>";let t=cart.reduce((a,x)=>a+x.price*x.qty,0);total.textContent=money(t);changeCalc()}
-function addCart(id){let p=P.find(x=>x.id===id),x=cart.find(x=>x.id===id);if(x){if(x.qty<p.stock)x.qty++}else cart.push({id:p.id,name:p.name,price:p.price,cost:p.cost,qty:1});renderSale()}
-function setPay(x,b){payment=x;document.querySelectorAll(".pay button").forEach(z=>z.classList.remove("on"));b.classList.add("on");changeCalc()}function changeCalc(){let t=cart.reduce((a,x)=>a+x.price*x.qty,0),c=+cash.value||0;change.textContent=payment==="Efectivo"&&c?t>=c?`Faltan ${money(t-c)}`:`Cambio: ${money(c-t)}`:""}
+function renderSale(){
+let q=(sq.value||"").toLowerCase();
+catalog.innerHTML=P.filter(p=>p.stock>0&&p.name.toLowerCase().includes(q))
+.sort((a,b)=>a.name.localeCompare(b.name,"es"))
+.map(p=>`<button class="catprod" onclick="addCart('${p.id}')">${p.icon} <strong>${p.name}</strong><span>${money(p.price)} · ${p.stock} disponibles</span></button>`).join("");
+
+cart.innerHTML=cart.length?cart.map((x,i)=>`
+<div class="cartitem">
+  <div><strong>${x.name}</strong><br><small>${money(x.price)} c/u</small>
+    <div class="qtycontrols">
+      <button onclick="changeQty(${i},-1)">−</button>
+      <span style="min-width:28px;text-align:center;font-weight:700">${x.qty}</span>
+      <button onclick="changeQty(${i},1)">+</button>
+      <button class="remove" title="Quitar producto" onclick="removeCart(${i})">🗑️</button>
+    </div>
+  </div>
+  <strong>${money(x.price*x.qty)}</strong>
+</div>`).join(""):"<p class='mut'>Agrega productos al ticket.</p>";
+
+let t=cart.reduce((a,x)=>a+x.price*x.qty,0);
+total.textContent=money(t);
+changeCalc();
+}
+
+function addCart(id){
+let p=P.find(x=>x.id===id),x=cart.find(x=>x.id===id);
+if(x){if(x.qty<p.stock)x.qty++}else cart.push({id:p.id,name:p.name,price:p.price,cost:p.cost,qty:1});
+renderSale()
+}
+
+function changeQty(i,delta){
+let x=cart[i],p=P.find(p=>p.id===x.id);
+if(!x||!p)return;
+x.qty+=delta;
+if(x.qty<=0)cart.splice(i,1);
+else if(x.qty>p.stock)x.qty=p.stock;
+renderSale();
+}
+
+function removeCart(i){
+cart.splice(i,1);
+renderSale();
+}
+
+function clearCart(){
+if(!cart.length)return;
+if(confirm("¿Vaciar todos los productos de la venta?")){
+cart=[];
+cash.value="";
+renderSale();
+}
+}
+
+function cancelSale(){
+if(!cart.length){cash.value="";renderSale();return}
+if(confirm("¿Cancelar esta venta completa? Se quitarán todos los productos del ticket y no se descontará inventario.")){
+cart=[];
+cash.value="";
+renderSale();
+}
+}
+
+function setPay(x,b){
+payment=x;
+document.querySelectorAll(".pay button").forEach(z=>z.classList.remove("on"));
+b.classList.add("on");
+cash.style.display=payment==="Efectivo"?"block":"none";
+if(payment!=="Efectivo")cash.value="";
+changeCalc()
+}
+function changeCalc(){
+let t=cart.reduce((a,x)=>a+x.price*x.qty,0),c=+cash.value||0;
+change.textContent=payment==="Efectivo"&&c?(c<t?`Faltan ${money(t-c)}`:`Cambio: ${money(c-t)}`):"";
+}
 function finishSale(){let t=cart.reduce((a,x)=>a+x.price*x.qty,0);if(!cart.length)return alert("El ticket está vacío.");if(payment==="Efectivo"&&(+cash.value||0)<t)return alert("El efectivo recibido es insuficiente.");cart.forEach(x=>{let p=P.find(p=>p.id===x.id);p.stock-=x.qty});let profit=cart.reduce((a,x)=>a+(x.price-x.cost)*x.qty,0);sales.push({id:sales.length+1,date:new Date().toISOString(),total:t,profit,items:cart,payment});save();window.print();cart=[];cash.value="";renderAll();alert("Venta registrada correctamente.")}
 function openCash(){cashState.textContent="Caja abierta";alert("Caja abierta. En una versión con nube se guardará el fondo inicial y usuario.");}function closeCash(){cashState.textContent="Caja cerrada";alert("Corte de caja preparado.")}
 function renderReports(){let v=sales.reduce((a,s)=>a+s.total,0),p=sales.reduce((a,s)=>a+s.profit,0),u=sales.reduce((a,s)=>a+s.items.reduce((z,i)=>z+i.qty,0),0);rSales.textContent=money(v);rProfit.textContent=money(p);rUnits.textContent=u;rInv.textContent=money(P.reduce((a,x)=>a+x.cost*x.stock,0));let m={};sales.flatMap(s=>s.items).forEach(i=>m[i.name]=(m[i.name]||0)+i.qty);best.innerHTML="<tr><th>Producto</th><th>Unidades</th></tr>"+Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,10).map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join("")}
